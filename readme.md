@@ -18,7 +18,7 @@ This approach take full advantage of the Kasten data management for backing up p
 
 [Workflow diagram](./images/edb-backup-adapter.drawio.png)
 
-# Getting Start 
+# Getting Started 
 ## Install the operator 
 
 If you already have EDB operator installed on kubernetes you can skip this part  
