@@ -140,7 +140,7 @@ kind: Policy
 apiVersion: config.kio.kasten.io/v1alpha1
 metadata:
   name: edb-backup
-  namespace: kasten-io  
+  namespace: kasten-io
 spec:
   frequency: "@onDemand"
   selector:
@@ -163,6 +163,14 @@ spec:
         profile:
           name: mcourcy-feesh
           namespace: kasten-io
+    - action: export
+      exportParameters:
+        frequency: "@onDemand"        
+        profile:
+          name: mcourcy-feesh
+          namespace: kasten-io        
+        exportData:
+          enabled: true
 ```
 
 ## Launch a backup 
