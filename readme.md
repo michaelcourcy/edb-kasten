@@ -128,50 +128,12 @@ kubectl create -f edb-hooks.yaml
 
 ## create a bakckup policy with the hooks 
 
-Create a policy for the edb namespace and add the hooks 
+Create a policy for the edb namespace: set up a location profile for export and kanister actions. 
+
+Add the hooks :
 
 ![Policy hooks](./images/policy-hooks.png)
 
-Also set up a location profile for both the hooks and the export location.
-
-Here is an example policy.
-```
-kind: Policy
-apiVersion: config.kio.kasten.io/v1alpha1
-metadata:
-  name: edb-backup
-  namespace: kasten-io
-spec:
-  frequency: "@onDemand"
-  selector:
-    matchExpressions:
-      - key: k10.kasten.io/appNamespace
-        operator: In
-        values:
-          - edb
-  actions:
-    - action: backup
-      backupParameters:
-        filters: {}
-        hooks:
-          preHook:
-            blueprint: edb-hooks
-            actionName: backupPrehook
-          onSuccess:
-            blueprint: edb-hooks
-            actionName: backupPosthook
-        profile:
-          name: mcourcy-feesh
-          namespace: kasten-io
-    - action: export
-      exportParameters:
-        frequency: "@onDemand"        
-        profile:
-          name: mcourcy-feesh
-          namespace: kasten-io        
-        exportData:
-          enabled: true
-```
 
 ## Launch a backup 
 
