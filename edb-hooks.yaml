@@ -1,0 +1,70 @@
+apiVersion: cr.kanister.io/v1alpha1
+kind: Blueprint
+metadata:
+  name: edb-hooks
+  namespace: kasten-io
+actions:
+  backupPrehook:
+    phases:
+    - func: KubeTask
+      name: edbPreBackupHook
+      args:
+        image: ghcr.io/kanisterio/kanister-kubectl-1.18:0.91.0
+        command:
+          - bash
+          - -x 
+          - -o
+          - errexit
+          - -o
+          - pipefail
+          - -c
+          - |
+            namespace={{ .Namespace.Name }}
+            selector='kasten-enterprisedb.io/hasHooks=true'
+            for pod in $(kubectl get po --no-headers -n $namespace -l $selector|awk '{print $1}')
+            do
+              preCommand=$(kubectl get po -n $namespace $pod -o jsonpath='{.metadata.annotations.kasten-enterprisedb\.io/pre-backup-command}')
+              preOnErrorCommand=$(kubectl get po -n $namespace $pod -o jsonpath='{.metadata.annotations.kasten-enterprisedb\.io/pre-backup-on-error}')
+              container=$(kubectl get po -n $namespace $pod -o jsonpath='{.metadata.annotations.kasten-enterprisedb\.io/pre-backup-container}')
+              command=${preCommand//[\[\]\"\,]/' '} 
+              result=$(kubectl exec -it $pod -c $container -n $namespace $pod -- bash -c "if $command; then echo success; else echo failure; fi" | tail -1)
+              if [[ $result == "failure" ]]
+              then 
+                echo "Error after running $preCommand in $pod/$container"
+                echo "Executing $preOnErrorCommand"
+                command=${preOnErrorCommand//[\[\]\"\,]/' '}
+                kubectl exec -it $pod -c $container -n $namespace $pod -- bash -c $command
+                exit 1
+              fi
+            done
+            exit 0  
+  backupPosthook:
+    phases:
+    - func: KubeTask
+      name: edbPostBackupHook
+      args:
+        image: ghcr.io/kanisterio/kanister-kubectl-1.18:0.91.0
+        command:
+          - bash
+          - -x 
+          - -o
+          - errexit
+          - -o
+          - pipefail
+          - -c
+          - |
+            namespace={{ .Namespace.Name }}
+            selector='kasten-enterprisedb.io/hasHooks=true'
+            for pod in $(kubectl get po --no-headers -n $namespace -l $selector|awk '{print $1}') 
+            do
+              postCommand=$(kubectl get po -n $namespace $pod -o jsonpath='{.metadata.annotations.kasten-enterprisedb\.io/post-backup-command}')
+              container=$(kubectl get po -n $namespace $pod -o jsonpath='{.metadata.annotations.kasten-enterprisedb\.io/post-backup-container}')
+              command=${postCommand//[\[\]\"\,]/' '} 
+              result=$(kubectl exec -it $pod -c $container -n $namespace $pod -- bash -c "if $command; then echo success; else echo failure; fi" | tail -1)
+              if [[ $result == "failure" ]]
+              then 
+                echo "Error after running $postCommand in $pod/$container"              
+                exit 1
+              fi
+            done
+            exit 0

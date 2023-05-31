@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webtest
+  template:
+    metadata:
+      labels:
+        app: webtest
+    spec:
+      containers:
+        - image: ghcr.io/cloudnative-pg/webtest:1.6.0
+          name: cert-test
+          volumeMounts:
+            - name: secret-volume-root-ca
+              mountPath: /etc/secrets/ca
+            - name: secret-volume-app
+              mountPath: /etc/secrets/app
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-example-app
+                  key: password
+            - name: DATABASE_URL
+              value: >
+                sslkey=/etc/secrets/app/tls.key
+                sslcert=/etc/secrets/app/tls.crt
+                sslrootcert=/etc/secrets/ca/ca.crt
+                host=cluster-example-rw.default.svc
+                dbname=app
+                user=app
+                sslmode=verify-full
+            - name: SQL_QUERY
+              value: SELECT 1
+      volumes:
+        - name: secret-volume-root-ca
+          secret:
+            secretName: cluster-example-ca
+            defaultMode: 0600
+        - name: secret-volume-app
+          secret:
+            secretName: cluster-app
+            defaultMode: 0600

@@ -1,0 +1,49 @@
+# Example of PostgreSQL cluster
+apiVersion: postgresql.k8s.enterprisedb.io/v1
+kind: Cluster
+metadata:
+  name: cluster-example
+  annotations:
+    "k8s.enterprisedb.io/addons": '["external-backup-adapter-cluster"]'
+    "k8s.enterprisedb.io/externalBackupAdapterClusterConfig": |-
+      electedResourcesDecorators:
+        - key: "kasten-enterprisedb.io/elected"
+          metadataType: "label"
+          value: "true"
+      excludedResourcesDecorators:
+        - key: "kasten-enterprisedb.io/excluded"
+          metadataType: "label"
+          value: "true"
+        - key: "kasten-enterprisedb.io/excluded-reason"
+          metadataType: "annotation"
+          value: "Not necessary for backup"
+      backupInstanceDecorators:
+        - key: "kasten-enterprisedb.io/hasHooks"
+          metadataType: "label"
+          value: "true"
+        - key: "kanister.kasten.io/blueprint"
+          metadataType: "annotation"
+          value: "edb-hooks"
+      preBackupHookConfiguration:
+        container:
+          key: "kasten-enterprisedb.io/pre-backup-container"
+        command:
+          key: "kasten-enterprisedb.io/pre-backup-command"
+        onError:
+          key: "kasten-enterprisedb.io/pre-backup-on-error"
+      postBackupHookConfiguration:
+        container:
+          key: "kasten-enterprisedb.io/post-backup-container"
+        command:
+          key: "kasten-enterprisedb.io/post-backup-command"
+spec:
+  instances: 3
+  # Example of rolling update strategy:
+  # - unsupervised: automated update of the primary once all
+  #                 replicas have been upgraded (default)
+  # - supervised: requires manual supervision to perform
+  #               the switchover of the primary
+  primaryUpdateStrategy: unsupervised
+  # Require 1Gi of space
+  storage:
+    size: 1Gi
