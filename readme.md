@@ -31,7 +31,7 @@ This will create the operator namespace where the controller will be running.
 
 ## Create an EDB cluster, a client and some data 
 
-If you already have an EDB cluster with you client application you can skip this part
+If you already have an EDB cluster with your client application you can skip this part
 
 ```
 kubctl create ns edb
