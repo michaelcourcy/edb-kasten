@@ -10,7 +10,7 @@ This approach take full advantage of the Kasten data management for backing up p
 
 ## How it works 
 
-[EDB backup adapter and Kasten works together](./images/edb-backup-adapter.drawio.png)
+![EDB backup adapter and Kasten works together](./images/edb-backup-adapter.drawio.png)
 
 1. The EDB Backup adapter will put the annotations/labels on one of the replicas (not the master) that has the commands to switch on backup mode 
 2. Kasten prebackup hook blueprint discover this replica and call the EDB pre-backup command on it, now the PVC of the elected replica is fully consistent for a backup
