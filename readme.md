@@ -126,7 +126,7 @@ Add this annotations to the cluster, in [cluster-example.yaml ](./cluster-exampl
 kubectl create -f edb-hooks.yaml
 ```
 
-## create a bakckup policy with the hooks 
+## Create a backup policy with the hooks 
 
 Create a policy for the edb namespace: set up a location profile for export and kanister actions. 
 
