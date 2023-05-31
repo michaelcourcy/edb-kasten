@@ -10,13 +10,13 @@ This approach take full advantage of the Kasten data management for backing up p
 
 ## How it works 
 
-![EDB backup adapter and Kasten works together](./images/edb-backup-adapter.drawio.png)
-
 1. The EDB Backup adapter will put the annotations/labels on one of the replicas (not the master) that has the commands to switch on backup mode 
 2. Kasten prebackup hook blueprint discover this replica and call the EDB pre-backup command on it, now the PVC of the elected replica is fully consistent for a backup
 3. Kasten proceed the backup of the complete namespace as usual
 4. Kasten postbackup hook blueprint call the EDB post-backup commands, the elected replica is back in a "normal" mode
 5. When Kasten restore the namespace, the EDB operator discover the elected replica and use it as the master for the EDB cluster
+
+[Workflow diagram](./images/edb-backup-adapter.drawio.png)
 
 # Getting Start 
 ## Install the operator 
