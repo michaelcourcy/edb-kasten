@@ -24,7 +24,7 @@ This approach take full advantage of the Kasten data management for backing up p
 If you already have EDB operator installed on kubernetes you can skip this part  
 
 ```
-kubectl apply -f https://get.enterprisedb.io/cnp/postgresql-operator-1.19.1.yaml
+kubectl apply -f https://get.enterprisedb.io/cnp/postgresql-operator-1.20.2.yaml
 ```
 
 This will create the operator namespace where the controller will be running.
@@ -34,11 +34,17 @@ This will create the operator namespace where the controller will be running.
 If you already have an EDB cluster with your client application you can skip this part
 
 ```
-kubctl create ns edb
-kubectl apply -f cluster-example.yaml -n edb
+kubectl create ns edb
+kubectl apply -f cluster-example-2.yaml -n edb
 ```
 
 Wait for the cluster to be fully ready.
+```
+kubectl get clusters.postgresql.k8s.enterprisedb.io -n edb
+NAME              AGE   INSTANCES   READY   STATUS                     PRIMARY
+cluster-example   19m   3           3       Cluster in healthy state   cluster-example-1
+```
+
 
 Install the cnp plugin if you haven't it yet 
 ```
@@ -81,43 +87,12 @@ exit
 
 ## Add the backup decorator annotations to the cluster 
 
-If you create the cluter from the previous section the cluster-example already include the backup decorator therefore you can skip this part.
+If you create the cluter from the previous section the cluster-example already include the kasten addon therefore you can skip this part.
 
 Add this annotations to the cluster, in [cluster-example.yaml ](./cluster-example.yaml) you have an example. 
 
 ```
-    "k8s.enterprisedb.io/addons": '["external-backup-adapter-cluster"]'
-    "k8s.enterprisedb.io/externalBackupAdapterClusterConfig": |-
-      electedResourcesDecorators:
-        - key: "kasten-enterprisedb.io/elected"
-          metadataType: "label"
-          value: "true"
-      excludedResourcesDecorators:
-        - key: "kasten-enterprisedb.io/excluded"
-          metadataType: "label"
-          value: "true"
-        - key: "kasten-enterprisedb.io/excluded-reason"
-          metadataType: "annotation"
-          value: "Not necessary for backup"
-      backupInstanceDecorators:
-        - key: "kasten-enterprisedb.io/hasHooks"
-          metadataType: "label"
-          value: "true"
-        - key: "kanister.kasten.io/blueprint"
-          metadataType: "annotation"
-          value: "edb-hooks"
-      preBackupHookConfiguration:
-        container:
-          key: "kasten-enterprisedb.io/pre-backup-container"
-        command:
-          key: "kasten-enterprisedb.io/pre-backup-command"
-        onError:
-          key: "kasten-enterprisedb.io/pre-backup-on-error"
-      postBackupHookConfiguration:
-        container:
-          key: "kasten-enterprisedb.io/post-backup-container"
-        command:
-          key: "kasten-enterprisedb.io/post-backup-command"
+    "k8s.enterprisedb.io/addons": '["kasten"]'
 ```
 
 ## Install the edb blueprint
@@ -148,6 +123,8 @@ kubectl delete ns edb
 ## Restore 
 
 On the remote restore point hit restore. You should find all your datas.
+
+![Restore edb cluster](./images/restore-edb.png)
 
 
 
