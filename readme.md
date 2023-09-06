@@ -114,6 +114,8 @@ Add the hooks :
 
 Launch a backup, that will create 2 restorepoints a local and a remote.
 
+![Launch a backup](./images/launch-a-backup.png)
+
 Delete the namespace edb 
 
 ```
