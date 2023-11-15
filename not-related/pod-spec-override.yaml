@@ -1,0 +1,16 @@
+ apiVersion: v1
+ data:
+   override: |
+     kind: Pod
+     spec:
+       containers:
+         - name: alpine
+           image: alpine
+           command:
+           - tail
+           - -f 
+           - /dev/null  
+ kind: ConfigMap
+ metadata:
+   name: pod-spec-override
+   namespace: kasten-io
