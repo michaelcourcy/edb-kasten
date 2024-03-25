@@ -10,11 +10,11 @@ This approach take full advantage of the Kasten data management for backing up p
 
 ## How it works 
 
-1. The EDB Backup adapter will put the annotations/labels on one of the replicas (not the master) that has the commands to switch on backup mode 
-2. Kasten prebackup hook blueprint discover this replica and call the EDB pre-backup command on it, now the PVC of the elected replica is fully consistent for a backup
-3. Kasten proceed the backup of the complete namespace as usual
-4. Kasten postbackup hook blueprint call the EDB post-backup commands, the elected replica is back in a "normal" mode
-5. When Kasten restore the namespace, the EDB operator discover the elected replica and use it as the master for the EDB cluster
+1. The EDB Backup adapter will put the annotations/labels on one of the replicas (not the master) that has the commands to switch on backup mode (in EDB terms to be `fenced`)
+2. Kasten prebackup hook blueprint discover this replica and call the EDB pre-backup command on it, now the replica is `fenced` and its PVC is fully consistent for a backup
+3. Kasten proceed the backup of the complete namespace as usual but we configure the policy to exclude the PVC having the label `kasten-enterprisedb.io/excluded: "true"`, only the PVC of the fenced replica will be captured, the other's PVC instance will be exluded of the backup.
+4. Kasten postbackup hook blueprint call the EDB post-backup commands, the elected replica is `unfenced` and back in a "normal" mode
+5. When Kasten restore the namespace, the EDB operator discover the pvc of the `fenced` replica and use it as the master for the EDB cluster, it recreates the other replica instances from it.
 
 [Workflow diagram](./images/edb-backup-adapter.drawio.png)
 
@@ -69,7 +69,7 @@ kubectl create -f client.yaml -n edb
 Create some data 
 ```
 kubectl exec -it deploy/cert-test -- bash
-psql 'sslkey=/etc/secrets/app/tls.key sslcert=/etc/secrets/app/tls.crt sslrootcert=/etc/secrets/ca/ca.crt host=cluster-example-rw dbname=app user=app sslmode=verify-full'
+psql " $DATABASE_URL "
 \c app
 DROP TABLE IF EXISTS links;
 CREATE TABLE links (
@@ -87,7 +87,7 @@ exit
 
 ## Add the backup decorator annotations to the cluster 
 
-If you create the cluter from the previous section the cluster-example already include the kasten addon therefore you can skip this part.
+You can skip this part if you create the cluter from the previous section because the cluster-example already include the kasten addon.
 
 Add this annotations to the cluster, in [cluster-example.yaml ](./cluster-example.yaml) you have an example. 
 
@@ -101,11 +101,16 @@ Add this annotations to the cluster, in [cluster-example.yaml ](./cluster-exampl
 kubectl create -f edb-hooks.yaml
 ```
 
-## Create a backup policy with the hooks 
+## Create a backup policy with the exclude filters and the hooks 
 
-Create a policy for the edb namespace: set up a location profile for export and kanister actions. 
+Create a Kasten policy for the edb namespace: set up a location profile for export and kanister actions. 
 
-Add the hooks :
+### Add the exlude filters :
+
+![PVC exclude filters](./images/exclude-filters.png)
+
+
+### Add the hooks :
 
 ![Policy hooks](./images/policy-hooks.png)
 
@@ -116,6 +121,13 @@ Launch a backup, that will create 2 restorepoints a local and a remote.
 
 ![Launch a backup](./images/launch-a-backup.png)
 
+When you'll visit the restore point you'll see that only one PVC has been taken then one that map to 
+the `fenced` instance.
+
+![Only one pvc has been backed up](./images/only-one-pvc-backed-up.png)
+
+## Let's test a restore
+
 Delete the namespace edb 
 
 ```
@@ -124,9 +136,103 @@ kubectl delete ns edb
 
 ## Restore 
 
-On the remote restore point hit restore. You should find all your datas.
+Because you deleted the namespace all the volumesnaphot are gone hence you need to restore from the external
+location profile.
 
-![Restore edb cluster](./images/restore-edb.png)
+![Choose exported](./images/choose-exported.png)
 
+Restore is for the moment a 2 steps process because we need to reinstall the labels on the pvc before restoring the 
+rest of the namespace (this will change in future version of Kasten when we'll restore also the label of a pvc) 
 
+### Step 1 : Only restore the pvc and reset the labels needed for the operator
 
+Deselect all, select only the edb pvc and hit restore.
+
+![Deselect all, reselect the edb pvc and click restore ](./images/deselect-all-reselect-pvc-restore.png)
+
+Now that the pvc is back reset the labels 
+
+```
+kubectl label pvc -n edb cluster-example-2 k8s.enterprisedb.io/cluster=cluster-example
+kubectl label pvc -n edb cluster-example-2 k8s.enterprisedb.io/instanceName=cluster-example-2
+```
+
+### Step 2 : restore all the rest except the pvc 
+
+Now it's the contrary : you unselect only the edb pvc and restore the rest. 
+
+![Restore the rest](./images/restore-the-rest.png)
+
+You should see pod cluster-example-3 immediatly starting (without initialization of the database) and the cluster-example-4 and cluster-example-5 joining.
+
+```
+kubectl get po -n edb -w
+NAME                         READY   STATUS     RESTARTS   AGE
+cert-test-5dcf5cb6b8-fhf4m   1/1     Running    0          3s
+cluster-example-2            0/1     Init:0/1   0          1s
+cluster-example-2            0/1     PodInitializing   0          3s
+cluster-example-2            0/1     Running           0          4s
+cluster-example-2            1/1     Running           0          5s
+cluster-example-2            1/1     Running           0          5s
+cluster-example-3-join-vm6d9   0/1     Pending           0          0s
+cluster-example-3-join-vm6d9   0/1     Pending           0          5s
+cluster-example-3-join-vm6d9   0/1     Init:0/1          0          5s
+cluster-example-3-join-vm6d9   0/1     PodInitializing   0          10s
+cluster-example-3-join-vm6d9   1/1     Running           0          11s
+cluster-example-3-join-vm6d9   0/1     Completed         0          13s
+cluster-example-3-join-vm6d9   0/1     Completed         0          15s
+cluster-example-3-join-vm6d9   0/1     Completed         0          16s
+cluster-example-3              0/1     Pending           0          0s
+cluster-example-3              0/1     Pending           0          0s
+cluster-example-3              0/1     Init:0/1          0          0s
+cluster-example-3              0/1     PodInitializing   0          4s
+cluster-example-3              0/1     Running           0          5s
+cluster-example-3              0/1     Running           0          5s
+cluster-example-3              1/1     Running           0          6s
+cluster-example-4-join-rtpxf   0/1     Pending           0          0s
+cluster-example-4-join-rtpxf   0/1     Pending           0          5s
+cluster-example-4-join-rtpxf   0/1     Init:0/1          0          5s
+cluster-example-4-join-rtpxf   0/1     PodInitializing   0          9s
+cluster-example-4-join-rtpxf   0/1     Completed         0          10s
+cluster-example-4-join-rtpxf   0/1     Completed         0          12s
+cluster-example-4-join-rtpxf   0/1     Completed         0          13s
+cluster-example-4              0/1     Pending           0          0s
+cluster-example-4              0/1     Pending           0          0s
+cluster-example-4              0/1     Init:0/1          0          0s
+cluster-example-4              0/1     PodInitializing   0          6s
+cluster-example-4              0/1     Running           0          7s
+cluster-example-4              0/1     Running           0          7s
+cluster-example-4              1/1     Running           0          8s
+cluster-example-4-join-rtpxf   0/1     Terminating       0          21s
+cluster-example-3-join-vm6d9   0/1     Terminating       0          43s
+cluster-example-4-join-rtpxf   0/1     Terminating       0          21s
+cluster-example-3-join-vm6d9   0/1     Terminating       0          43s
+cluster-example-3              1/1     Running           0          28s
+cluster-example-2              1/1     Running           0          50s
+cluster-example-4              1/1     Running           0          9s
+```
+
+### Note 
+
+Soon kasten will reset the labels on pvc and this 2 steps won't be needed you'll just have to hit restore.
+
+### Check your data are back.
+
+As you restore everything you also restore the client, connect to the client and check you have your data.
+
+```
+kubectl exec -it deploy/cert-test -- bash
+psql " $DATABASE_URL "
+\c app
+select * from links;
+\q
+exit
+```
+
+You should see your data back 
+```
+app=> select * from links;
+ id |        url        |  name  |     description      | last_update 
+----+-------------------+--------+----------------------+-------------
+  1 | https://kasten.io | Kasten | Backup on kubernetes | 2024-03-25
+```

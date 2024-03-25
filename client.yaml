@@ -33,7 +33,7 @@ spec:
                 sslkey=/etc/secrets/app/tls.key
                 sslcert=/etc/secrets/app/tls.crt
                 sslrootcert=/etc/secrets/ca/ca.crt
-                host=cluster-example-rw.default.svc
+                host=cluster-example-rw
                 dbname=app
                 user=app
                 sslmode=verify-full
