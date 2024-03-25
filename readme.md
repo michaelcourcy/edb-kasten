@@ -10,11 +10,11 @@ This approach take full advantage of the Kasten data management for backing up p
 
 ## How it works 
 
-1. The EDB Backup adapter will put the annotations/labels on one of the replicas (not the master) that has the commands to switch on backup mode (in EDB terms to be `fenced`)
+1. The EDB Backup adapter will put the annotations/labels on one of the replicas (not the primary) that has the commands to switch on backup mode (in EDB terms to be `fenced`)
 2. Kasten prebackup hook blueprint discover this replica and call the EDB pre-backup command on it, now the replica is `fenced` and its PVC is fully consistent for a backup
-3. Kasten proceed the backup of the complete namespace as usual but we configure the policy to exclude the PVC having the label `kasten-enterprisedb.io/excluded: "true"`, only the PVC of the fenced replica will be captured, the other's PVC instance will be exluded of the backup.
+3. Kasten proceed the backup of the complete namespace as usual but we configure the policy to exclude the PVC having the label `kasten-enterprisedb.io/excluded: "true"`, only the PVC of the `fenced` replica will be captured, the other's PVC instance will be exluded of the backup.
 4. Kasten postbackup hook blueprint call the EDB post-backup commands, the elected replica is `unfenced` and back in a "normal" mode
-5. When Kasten restore the namespace, the EDB operator discover the pvc of the `fenced` replica and use it as the master for the EDB cluster, it recreates the other replica instances from it.
+5. When Kasten restore the namespace, the EDB operator discover the pvc of the `fenced` replica and use it as the primary for the EDB cluster, it recreates the other replica instances from it.
 
 [Workflow diagram](./images/edb-backup-adapter.drawio.png)
 
@@ -87,13 +87,16 @@ exit
 
 ## Add the backup decorator annotations to the cluster 
 
-You can skip this part if you create the cluter from the previous section because the cluster-example already include the kasten addon.
+You can skip this part if you create the cluter from the previous section because with [cluster-example-2](./cluster-example-2.yaml) the cluster-example already include the kasten addon.
 
-Add this annotations to the cluster, in [cluster-example.yaml ](./cluster-example.yaml) you have an example. 
-
+If you have not it yet just had this annotation in your cluster CR 
 ```
     "k8s.enterprisedb.io/addons": '["kasten"]'
 ```
+
+If your version of EDB is old and does not support the kasten addons you can create all the annotations and labels manually 
+you have an example in [cluster-example.yaml ](./cluster-example.yaml). 
+
 
 ## Install the edb blueprint
 
@@ -163,7 +166,7 @@ Now it's the contrary : you unselect only the edb pvc and restore the rest.
 
 ![Restore the rest](./images/restore-the-rest.png)
 
-You should see pod cluster-example-3 immediatly starting (without initialization of the database) and the cluster-example-4 and cluster-example-5 joining.
+You should see pod cluster-example-2 immediatly starting (without initialization of the database) and the cluster-example-3 and cluster-example-4 joining.
 
 ```
 kubectl get po -n edb -w
