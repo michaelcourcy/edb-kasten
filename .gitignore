@@ -1,3 +1,4 @@
 notes.txt
 *.bkp
 *.dtmp
+.DS_Store
