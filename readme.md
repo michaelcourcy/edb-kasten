@@ -31,7 +31,6 @@ This will create the operator namespace where the controller will be running.
 
 ## Create an EDB cluster, a client and some data 
 
-If you already have an EDB cluster with your client application you can skip this part
 
 ```
 kubectl create ns edb
@@ -110,6 +109,10 @@ Create a Kasten policy for the edb namespace: set up a location profile for expo
 
 ### Add the exlude filters :
 
+```
+kasten-enterprisedb.io/excluded:true
+```
+
 ![PVC exclude filters](./images/exclude-filters.png)
 
 
@@ -144,27 +147,7 @@ location profile.
 
 ![Choose exported](./images/choose-exported.png)
 
-Restore is for the moment a 2 steps process because we need to reinstall the labels on the pvc before restoring the 
-rest of the namespace (this will change in future version of Kasten when we'll restore also the label of a pvc) 
-
-### Step 1 : Only restore the pvc and reset the labels needed for the operator
-
-Deselect all, select only the edb pvc and hit restore.
-
-![Deselect all, reselect the edb pvc and click restore ](./images/deselect-all-reselect-pvc-restore.png)
-
-Now that the pvc is back reset the labels 
-
-```
-kubectl label pvc -n edb cluster-example-2 k8s.enterprisedb.io/cluster=cluster-example
-kubectl label pvc -n edb cluster-example-2 k8s.enterprisedb.io/instanceName=cluster-example-2
-```
-
-### Step 2 : restore all the rest except the pvc 
-
-Now it's the contrary : you unselect only the edb pvc and restore the rest. 
-
-![Restore the rest](./images/restore-the-rest.png)
+Just click restore and wait for the EDB cluster to restart.
 
 You should see pod cluster-example-2 immediatly starting (without initialization of the database) and the cluster-example-3 and cluster-example-4 joining.
 
@@ -214,10 +197,6 @@ cluster-example-3              1/1     Running           0          28s
 cluster-example-2              1/1     Running           0          50s
 cluster-example-4              1/1     Running           0          9s
 ```
-
-### Note 
-
-Soon kasten will reset the labels on pvc and this 2 steps won't be needed you'll just have to hit restore.
 
 ### Check your data are back.
 
